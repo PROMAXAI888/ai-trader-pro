@@ -7,113 +7,76 @@ from streamlit_mic_recorder import mic_recorder
 # --- 1. การตั้งค่าหน้าเว็บ ---
 st.set_page_config(page_title="AI Trade Buddy Pro", layout="wide", page_icon="📈")
 
-# ตกแต่ง CSS ให้ปุ่มไมค์ดูเรียบเนียนขึ้น
+# ตกแต่ง CSS ให้ช่อง Input และปุ่มดูรวมเป็นกลุ่มเดียวกัน
 st.markdown("""
     <style>
-    .stButton > button { width: 100%; border-radius: 20px; }
     .stTextInput > div > div > input { border-radius: 20px; }
+    .stButton > button { border-radius: 20px; height: 3em; background-color: #007bff; color: white; }
+    div[data-testid="stColumn"] { display: flex; align-items: center; }
     </style>
     """, unsafe_allow_html=True)
 
 st.title("🤖 AI Trade Buddy Pro")
-st.caption("เวอร์ชัน 2026: รองรับการสั่งงานด้วยเสียง วิเคราะห์ภาพ และกราฟเทรดดิ้ง")
 
-# --- 2. การเชื่อมต่อ API ---
-import streamlit as st
-# บรรทัดนี้จะดึงรหัสจากหน้า Secrets ที่เราตั้งค่าไว้ในเว็บ Streamlit มาใช้
-API_KEY = st.secrets["GOOGLE_API_KEY"]
-genai.configure(api_key=API_KEY)
+# --- 2. การเชื่อมต่อ API (ดึงจาก Secrets เพื่อความปลอดภัย) ---
+try:
+    API_KEY = st.secrets["GOOGLE_API_KEY"]
+    genai.configure(api_key=API_KEY)
+except:
+    st.error("❌ ไม่พบ API KEY ในหน้า Secrets กรุณาตั้งค่าก่อนใช้งาน")
 
-# --- 3. Sidebar เมนูตั้งค่า ---
-st.sidebar.header("⚙️ ตั้งค่าสินทรัพย์")
-symbol = st.sidebar.selectbox(
-    "เลือกคู่เทรด:", 
-    ["BTCUSD", "ETHUSD", "XAUUSD", "EURUSD", "GBPUSD"]
-)
-st.sidebar.divider()
-st.sidebar.write("🟢 สถานะ: เชื่อมต่อ Gemini 2.5 Flash")
+# --- 3. Sidebar และ กราฟ TradingView ---
+symbol = st.sidebar.selectbox("🎯 เลือกคู่เทรด:", ["BTCUSD", "ETHUSD", "XAUUSD", "EURUSD"])
+ticker = f"BINANCE:{symbol}T" if symbol in ["BTCUSD", "ETHUSD"] else ( "OANDA:XAUUSD" if symbol == "XAUUSD" else f"FX_IDC:{symbol}")
 
-# --- 4. แสดงกราฟ TradingView ---
-st.subheader(f"📊 กราฟราคาปัจจุบัน: {symbol}")
-
-if symbol in ["BTCUSD", "ETHUSD"]:
-    ticker = f"BINANCE:{symbol}T"
-elif symbol == "XAUUSD":
-    ticker = "OANDA:XAUUSD"
-else:
-    ticker = f"FX_IDC:{symbol}"
-
-tradingview_html = f"""
-<iframe 
-    src="https://s.tradingview.com/widgetembed/?symbol={ticker}&interval=D&theme=dark&locale=th" 
-    width="100%" height="500" frameborder="0" allowtransparency="true" scrolling="no" allowfullscreen>
-</iframe>
-"""
-components.html(tradingview_html, height=510)
+tradingview_html = f'<iframe src="https://s.tradingview.com/widgetembed/?symbol={ticker}&interval=D&theme=dark&locale=th" width="100%" height="450" frameborder="0" allowtransparency="true" scrolling="no" allowfullscreen></iframe>'
+components.html(tradingview_html, height=460)
 
 st.divider()
 
-# --- 5. ระบบ AI (Voice behind Text input) ---
+# --- 4. ระบบ AI รวมร่าง (Compact Input) ---
 st.subheader("💬 ปรึกษาเซียน AI")
 
-# สร้าง Layout ให้ปุ่มไมค์อยู่หลังช่องพิมพ์
-col_text, col_mic = st.columns([0.85, 0.15])
+# แบ่งคอลัมน์: ช่องพิมพ์ (70%), แนบรูป (15%), ไมค์ (15%)
+col_text, col_file, col_mic = st.columns([0.7, 0.15, 0.15])
 
 with col_text:
-    user_input = st.text_input(
-        "ถามคำถาม:", 
-        placeholder="พิมพ์คำถามที่นี่ หรือกดไมค์ด้านข้างเพื่อพูด...",
-        label_visibility="collapsed"
-    )
+    user_input = st.text_input("ถามคำถาม:", placeholder="พิมพ์คำถามที่นี่...", label_visibility="collapsed")
+
+with col_file:
+    # ช่องแนบรูปแบบไอคอน
+    uploaded_file = st.file_uploader("Upload", type=["jpg", "jpeg", "png"], label_visibility="collapsed")
 
 with col_mic:
-    # ปุ่มไมค์แบบกระชับอยู่ท้ายช่องพิมพ์
-    audio_data = mic_recorder(
-        start_prompt="🎤 พูด",
-        stop_prompt="🛑 หยุด",
-        key='recorder'
-    )
+    # ปุ่มไมค์
+    audio_data = mic_recorder(start_prompt="🎤", stop_prompt="🛑", key='recorder')
 
-# ส่วนอัปโหลดรูปภาพ
-uploaded_file = st.file_uploader("📸 แนบรูปกราฟเพื่อวิเคราะห์ภาพ:", type=["jpg", "jpeg", "png"])
+# ปุ่มส่งแบบเต็มความกว้าง
+submit = st.button("🚀 ส่งให้ AI วิเคราะห์ด่วน", use_container_width=True)
 
-# ปุ่มส่งคำถามหลัก
-submit_all = st.button("🚀 ส่งให้ AI วิเคราะห์")
-
-# --- 6. ส่วนประมวลผล Logic ---
-if submit_all or audio_data:
+# --- 5. ส่วนประมวลผล ---
+if submit or audio_data:
     if not user_input and not audio_data and not uploaded_file:
-        st.warning("⚠️ โปรดระบุข้อมูล (พิมพ์, พูด หรือ แนบรูป) อย่างใดอย่างหนึ่ง")
+        st.warning("⚠️ โปรดระบุข้อมูลอย่างใดอย่างหนึ่ง (พิมพ์/พูด/ส่งรูป)")
     else:
-        with st.spinner('🔍 เซียน AI กำลังประมวลผล...'):
+        with st.spinner('⚡ เซียน AI กำลังวิเคราะห์...'):
             try:
-                # ใช้รุ่นที่รองรับ Audio & Vision พร้อมกัน (รุ่น 2.5 ขึ้นไป)
                 model = genai.GenerativeModel('gemini-2.5-flash')
+                content_list = ["วิเคราะห์ในฐานะเซียนเทรดเดอร์ ตอบเป็นภาษาไทย กระชับ ได้ใจความ: "]
                 
-                content_list = ["คุณคือเซียนเทรดเดอร์ ตอบเป็นภาษาไทยและวิเคราะห์อย่างมืออาชีพ: "]
-                
-                # เพิ่มเสียง (ถ้ามี)
-                if audio_data:
-                    content_list.append({"mime_type": "audio/wav", "data": audio_data['bytes']})
-                
-                # เพิ่มข้อความ (ถ้ามี)
-                if user_input:
-                    content_list[0] += user_input
-                
-                # เพิ่มรูปภาพ (ถ้ามี)
+                if user_input: content_list[0] += user_input
+                if audio_data: content_list.append({"mime_type": "audio/wav", "data": audio_data['bytes']})
                 if uploaded_file:
                     img = Image.open(uploaded_file)
+                    img.thumbnail((800, 800)) # ลดขนาดภาพให้ประมวลผลเร็วขึ้น
                     content_list.append(img)
                 
-                # สั่งงาน AI
                 response = model.generate_content(content_list)
-                
-                st.success("✅ ผลการวิเคราะห์:")
-                st.markdown(f"> {response.text}")
+                st.success("✅ บทวิเคราะห์:")
+                st.markdown(response.text)
                 
             except Exception as e:
                 st.error(f"❌ เกิดข้อผิดพลาด: {e}")
-                st.info("💡 คำแนะนำ: หากติดปัญหา 404 ให้เช็คชื่อ Model ในเครื่องอีกครั้ง")
 
 st.divider()
-st.markdown("<center><small>AI Trade Buddy Pro v6.5 | 2026 Stable</small></center>", unsafe_allow_html=True)
+st.caption("AI Trade Buddy v7.0 | Compact Interface 2026")
