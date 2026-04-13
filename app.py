@@ -19,7 +19,7 @@ st.title("🤖 AI Trade Buddy Pro")
 st.caption("เวอร์ชัน 2026: รองรับการสั่งงานด้วยเสียง วิเคราะห์ภาพ และกราฟเทรดดิ้ง")
 
 # --- 2. การเชื่อมต่อ API ---
-API_KEY = "AIzaSyACJPtk0ApHJPbF9VWqu8Z9pdYE3LDI-y4"
+API_KEY = "AIzaSyCmHJ8AqolhFMtmOvBs7aljvbNi4c_VBmc"
 genai.configure(api_key=API_KEY)
 
 # --- 3. Sidebar เมนูตั้งค่า ---
